@@ -1,4 +1,4 @@
-  WiFiAccessPoint.ino creates a WiFi access point and provides a web server on it.
+/*WiFiAccessPoint.ino creates a WiFi access point and provides a web server on it.
  
   Steps:
   1. Connect to the access point "yourAp"
