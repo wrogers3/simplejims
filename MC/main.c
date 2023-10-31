@@ -1,4 +1,4 @@
-//*WiFiAccessPoint.ino creates a WiFi access point and provides a web server on it.
+/*WiFiAccessPoint.ino creates a WiFi access point and provides a web server on it.
  
   Steps:
   1. Connect to the access point "yourAp"
@@ -73,8 +73,8 @@ void loop() {
             client.println();
  
             // the content of the HTTP response follows the header:
-            client.print("Click <a href=\"/H\">here</a> to turn ON the door.<br>");
-            client.print("Click <a href=\"/L\">here</a> to turn OFF the door.<br>");
+            client.print("Click <a href=\"/H\">here</a> to OPEN the door.<br>");
+            client.print("Click <a href=\"/L\">here</a> to CLOSE the door.<br>");
  
             // The HTTP response ends with another blank line:
             client.println();
