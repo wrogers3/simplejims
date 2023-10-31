@@ -1,4 +1,4 @@
-  WiFiAccessPoint.ino creates a WiFi access point and provides a web server on it.
+//*WiFiAccessPoint.ino creates a WiFi access point and provides a web server on it.
  
   Steps:
   1. Connect to the access point "yourAp"
@@ -13,18 +13,29 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <WiFiAP.h>
- 
-#define LED_BUILTIN 2   // Set the GPIO pin where you connected your test LED or comment this line out if your dev board has a built-in LED
- 
-// Set these to your desired credentials.
-const char *ssid = "yourAP";
-const char *password = "yourPassword";
+
+const char *ssid = "SimpleJims";
+const char *password = "password";
  
 WiFiServer server(80);
  
+#define MOTORPIN1 27
+#define MOTORPIN2 26
+#define ENABLE1 14
+
+// hard code moment
+const int freq = 30000;
+const int pwmChannel = 0;
+const int resolution = 8;
+int dutyCycle = 200;
  
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(MOTORPIN1, OUTPUT);
+  pinMode(MOTORPIN2, OUTPUT);
+  pinMode(ENABLE1, OUTPUT);
+
+  ledcSetup(pwmChannel, freq, resolution);
+  ledcAttachPin(ENABLE1, pwmChannel);
  
   Serial.begin(115200);
   Serial.println();
@@ -62,8 +73,8 @@ void loop() {
             client.println();
  
             // the content of the HTTP response follows the header:
-            client.print("Click <a href=\"/H\">here</a> to turn ON the LED.<br>");
-            client.print("Click <a href=\"/L\">here</a> to turn OFF the LED.<br>");
+            client.print("Click <a href=\"/H\">here</a> to turn ON the door.<br>");
+            client.print("Click <a href=\"/L\">here</a> to turn OFF the door.<br>");
  
             // The HTTP response ends with another blank line:
             client.println();
@@ -78,10 +89,25 @@ void loop() {
  
         // Check to see if the client request was "GET /H" or "GET /L":
         if (currentLine.endsWith("GET /H")) {
-          digitalWrite(LED_BUILTIN, HIGH);               // GET /H turns the LED on
+	    // this is where you enable motor spin 
+	    Serial.println("Moving one way");
+	    digitalWrite(MOTORPIN1, LOW);
+	    digitalWrite(MOTORPIN2, HIGH);
+	    delay(2000);
+	    //stopping
+	    digitalWrite(MOTORPIN1, LOW);
+	    digitalWrite(MOTORPIN2, LOW);
+
         }
         if (currentLine.endsWith("GET /L")) {
-          digitalWrite(LED_BUILTIN, LOW);                // GET /L turns the LED off
+	    Serial.println("Moving the other way");
+	    digitalWrite(MOTORPIN1, HIGH);
+	    digitalWrite(MOTORPIN2, LOW);
+	    delay(2000);
+	    //stopping
+	    digitalWrite(MOTORPIN1, LOW);
+	    digitalWrite(MOTORPIN2, LOW);
+
         }
       }
     }
