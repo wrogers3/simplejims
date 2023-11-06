@@ -241,8 +241,10 @@ void loop() {
 								Serial.println("Gate 2 closed\n");
 							}
 						} else if (header.indexOf("GET /gate1/open") >= 0) {
+              g1 = true;
 							gateOpen(1);
 						} else if (header.indexOf("GET /gate1/close") >= 0) {
+              g1 = false;
 							gateClose(1);
 						}
 
