@@ -29,12 +29,12 @@
      // line out if your dev board has a built-in LED
 String header;
 // Set these to your desired credentials.
-const char *ssid = "ESP32 c8:f0:9e:9b:88:7c";
+const char *ssid = "ESP32 40:22:d8:05:2b:98";
 const char *password = "Password";
 WiFiServer server(80);
 
 // REPLACE WITH THE MAC Address of your receiver
-uint8_t broadcastAddress[] = {0x40, 0x22, 0xd8, 0x05, 0x2b, 0x98};
+uint8_t broadcastAddress[] = {0xc8, 0xf0, 0x9e, 0x9b, 0x88, 0x7c};
 
 // Define variables to store incoming readings
 int incomingMessage;
@@ -66,7 +66,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 	memcpy(&incomingPacket, incomingData, sizeof(incomingPacket));
 	Serial.print("Bytes received: ");
-	Serial.println(len);
+	Serial.println(incomingPacket.message);
 	incomingMessage = incomingPacket.message;
 }
 
@@ -106,7 +106,7 @@ void gateOpen(int gateNum) {
 
 void setup() {
 	// close the gate associated with ESP when initializing
-	g2 = false;
+	g1 = false;
 	// insert code here
 
 	pinMode(LED_BUILTIN, OUTPUT);
@@ -158,7 +158,7 @@ void loop() {
 		String currentLine = "";
 
 		// check status of gate 1
-		checkStatus(1);
+		checkStatus(2);
 
 		// make a String to hold incoming data from the client
 		while (client.connected()) {     // loop while the client's connected
@@ -184,11 +184,11 @@ void loop() {
 						if (incomingMessage == true) {
 							Serial.println("query result: Gate is open\n");
 							incomingMessage = -1;
-							g1 = true;
+							g2 = true;
 						} else if (incomingMessage == false) {
 							Serial.println("query result: Gate is closed\n");
 							incomingMessage = -1;
-							g1 = false;
+							g2 = false;
 						}
 
 						if (incomingMessage == queryG1status) {
@@ -205,45 +205,45 @@ void loop() {
 						}
 
 						// if receive messsage from another device
-						if (incomingMessage == openGate2) {
-							Serial.println("Gate 2 opening (remote)");
-							g2 = true;
-							gateOpen(2);
+						if (incomingMessage == openGate1) {
+							Serial.println("Gate 1 opening (remote)");
+							g1 = true;
+							gateOpen(1);
 							// do the code
 						}
-						if (incomingMessage = closeGate2) {
-							Serial.println("Gate 2 closing (remote)");
-							g2 = false;
-							gateClose(2);
+						if (incomingMessage = closeGate1) {
+							Serial.println("Gate 1 closing (remote)");
+							g1 = false;
+							gateClose(1);
 							// close the gate
 						}
 
 						// Opens gate 1
-						if (header.indexOf("GET /gate1/open") >= 0) {
-							Serial.println("Gate 1 opening (sent command)");
-							outgoingPacket.message = openGate1;
+						if (header.indexOf("GET /gate2/open") >= 0) {
+							Serial.println("Gate 2 opening (sent command)");
+							outgoingPacket.message = openGate2;
 							result = esp_now_send(broadcastAddress,
 							                      (uint8_t *)&outgoingPacket,
 							                      sizeof(outgoingPacket));
 							if (checkResult(result)) {
-								g1 = true;
-								Serial.println("Gate 1 opened\n");
+								g2 = true;
+								Serial.println("Gate 2 opened\n");
 							}
 
-						} else if (header.indexOf("GET /gate1/close") >= 0) {
-							Serial.println("Gate 1 closing (sent command)");
-							outgoingPacket.message = closeGate1;
+						} else if (header.indexOf("GET /gate2/close") >= 0) {
+							Serial.println("Gate 2 closing (sent command)");
+							outgoingPacket.message = closeGate2;
 							result = esp_now_send(broadcastAddress,
 							                      (uint8_t *)&outgoingPacket,
 							                      sizeof(outgoingPacket));
 							if (checkResult(result)) {
-								g1 = false;
-								Serial.println("Gate 1 closed\n");
+								g2 = false;
+								Serial.println("Gate 2 closed\n");
 							}
-						} else if (header.indexOf("GET /gate2/open") >= 0) {
-							gateOpen(2);
-						} else if (header.indexOf("GET /gate2/close") >= 0) {
-							gateClose(2);
+						} else if (header.indexOf("GET /gate1/open") >= 0) {
+							gateOpen(1);
+						} else if (header.indexOf("GET /gate1/close") >= 0) {
+							gateClose(1);
 						}
 
 						// Display the HTML web page
