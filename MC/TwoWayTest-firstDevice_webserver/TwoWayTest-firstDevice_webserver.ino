@@ -29,7 +29,7 @@
 #define otherNode 2
 #define notConnected -1
 #define reset -1
-const long timeoutTime = 3000;
+const long timeoutTime = 1000;
 // Current time
 unsigned long currentTime = millis();
 // Previous time
@@ -40,7 +40,7 @@ int g2 = notConnected;
 
 String header;
 // Set these to your desired credentials.
-const char *ssid = "ESP32 40:22:d8:05:2b:98";
+const char *ssid = "ESP32 40:22:d8:05:2b:98 (node 1)";
 const char *password = "Password";
 WiFiServer server(80);
 
@@ -85,7 +85,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 		result = esp_now_send(broadcastAddress, (uint8_t *)&outgoingPacket,
 		                      sizeof(outgoingPacket));
 		if (result == ESP_OK) {
-			Serial.println(" Query Response (ESP-NOW)");
+			Serial.println("Query Response (ESP-NOW)");
 		} else {
 			result = esp_now_send(broadcastAddress, (uint8_t *)&outgoingPacket,
 			                      sizeof(outgoingPacket));
@@ -96,11 +96,11 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 
 	// if receive messsage from another device
 	if (incomingMessage == openGate1) {
-		Serial.println("RECEIVED: close Gate1 (ESP-NOW)");
+		Serial.println("RECEIVED: open Gate1 (ESP-NOW)");
 		g1 = true;
 		gateOpen(thisNode);
 	}
-	if (incomingMessage = closeGate1) {
+	if (incomingMessage == closeGate1) {
 		Serial.println("RECEIVED: close Gate1 (ESP-NOW)");
 		g1 = false;
 		gateClose(thisNode);
@@ -132,12 +132,12 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 void gateClose(int gateNum) {
 	// check if gate is closed
 
-	Serial.println("Gate " + String(gateNum) + " motors moving");
+	Serial.println("Gate " + String(gateNum) + " motors moving (closing)");
 	//
 }
 
 void gateOpen(int gateNum) {
-	Serial.println("Gate " + String(gateNum) + " motors moving");
+	Serial.println("Gate " + String(gateNum) + " motors moving (opening)");
 }
 
 void setup() {
@@ -207,6 +207,7 @@ void setup() {
 				Serial.println(
 				    "INITIALIZATION: received information about other gate(s)");
 				g2 = incomingMessage;
+				break;
 			}
 		}
 		if (flag == false) {
@@ -218,12 +219,48 @@ void setup() {
 void loop() {
 	WiFiClient client = server.available();  // listen for incoming clients
 	esp_err_t result;
-	if (client) {                       // if you get a client,
+	if (client) {
+		currentTime = millis();
+		previousTime = currentTime;     // if you get a client,
 		Serial.println("New Client.");  // print a message out the serial port
 		String currentLine = "";
 
+		esp_err_t result;
+		outgoingPacket.message = queryOther;
+		Serial.println("Pinging other nodes for gate information");
+		result = esp_now_send(broadcastAddress, (uint8_t *)&outgoingPacket,
+		                      sizeof(outgoingPacket));
+		bool flag = false;
+		if (success == "Delivery Fail :(") {
+			// mark as not connected
+			g2 = notConnected;
+			Serial.println("ERROR: Unable to establish connection!");
+			// continue
+		} else {
+			currentTime = millis();
+			previousTime = currentTime;
+			while ((currentTime - previousTime) <= timeoutTime) {
+				currentTime = millis();
+				// wait
+				if (incomingMessage == true || incomingMessage == false) {
+					flag = true;
+					Serial.println("Received information about other gate(s)");
+					g2 = incomingMessage;
+					break;
+				}
+			}
+			if (flag == false) {
+				Serial.println("Did not receive Response");
+				g2 = notConnected;
+			}
+		}
+
 		// make a String to hold incoming data from the client
-		while (client.connected()) {   // loop while the client's connected
+		while (client.connected() &&
+		       currentTime - previousTime <= timeoutTime) {
+			currentTime = millis();
+
+			// loop while the client's connected
 			if (client.available()) {  // if there's bytes to read from the//
 				                       // client,// read a byte, then
 
@@ -256,6 +293,12 @@ void loop() {
 
 						// Opens gate 1
 						if (header.indexOf("GET /gate2/open") >= 0) {
+							header = "";
+							// 							if ((incomingMessage == true
+							// ||
+							//      incomingMessage == false)) {
+							// 	goto displayPage;
+							// }
 							Serial.println(
 							    "Attempting to establish ESP-NOW connection");
 							outgoingPacket.message = openGate2;
@@ -274,6 +317,7 @@ void loop() {
 							}
 
 						} else if (header.indexOf("GET /gate2/close") >= 0) {
+							header = "";
 							Serial.println(
 							    "Attempting to establish ESP-NOW connection");
 							outgoingPacket.message = closeGate2;
@@ -291,19 +335,23 @@ void loop() {
 								g2 = notConnected;
 							}
 						} else if (header.indexOf("GET /gate1/open") >= 0) {
+							header = "";
 							Serial.println(
 							    "RECEIVED: Open gate 1 (web server)");
 							g1 = true;
 							gateOpen(1);
 						} else if (header.indexOf("GET /gate1/close") >= 0) {
+							header = "";
 							Serial.println(
 							    "RECEIVED: Close gate 1 (web server)");
 							g1 = false;
 							gateClose(1);
 						} else if (header.indexOf("GET /gate1/status") >= 0) {
+							header = "";
 							Serial.println("Trying to get gate 1 status");
 
 						} else if (header.indexOf("GET /gate2/status") >= 0) {
+							header = "";
 							Serial.println("Trying to get gate 2 status");
 							outgoingPacket.message = queryOther;
 							result = esp_now_send(broadcastAddress,
@@ -326,7 +374,7 @@ void loop() {
 									if (incomingMessage == true ||
 									    incomingMessage == false) {
 										flag = true;
-										Serial.println("Sucess!");
+										Serial.println("Success!");
 										g2 = incomingMessage;
 									}
 								}
@@ -337,115 +385,111 @@ void loop() {
 							}
 						}
 
-							// Display the HTML web page
-							client.println("<!DOCTYPE html><html>");
-							client.println(
-							    "<head><meta name=\"viewport\" "
-							    "content=\"width=device-width, "
-							    "initial-scale=1\">");
-							client.println(
-							    "<link rel=\"icon\" href=\"data:,\">");
-							// CSS to style the on/off buttons
-							// Feel free to change the background-color and
-							// font-size attributes to fit your preferences
-							client.println(
-							    "<style>html { font-family: Roboto; display: "
-							    "inline-block; margin: 0px auto; text-align: "
-							    "center;}");
-							client.println(
-							    ".button { background-color: #4CAF50; border: "
-							    "none; color: white; padding: 16px 40px;");
-							client.println(
-							    "text-decoration: none; font-size: 30px; "
-							    "margin: "
-							    "2px; cursor: pointer;}");
-							client.println(
-							    ".button2 {background-color: "
-							    "#555555;}</style></head>");
+						// Display the HTML web page
+						client.println("<!DOCTYPE html><html>");
+						client.println(
+						    "<head><meta name=\"viewport\" "
+						    "content=\"width=device-width, "
+						    "initial-scale=1\">");
+						client.println("<link rel=\"icon\" href=\"data:,\">");
+						// CSS to style the on/off buttons
+						// Feel free to change the background-color and
+						// font-size attributes to fit your preferences
+						client.println(
+						    "<style>html { font-family: Roboto; display: "
+						    "inline-block; margin: 0px auto; text-align: "
+						    "center;}");
+						client.println(
+						    ".button { background-color: #4CAF50; border: "
+						    "none; color: white; padding: 16px 40px;");
+						client.println(
+						    "text-decoration: none; font-size: 30px; "
+						    "margin: "
+						    "2px; cursor: pointer;}");
+						client.println(
+						    ".button2 {background-color: "
+						    "#555555;}</style></head>");
 
-							// Web Page Heading
-							client.println("<body><h1>Simple Jim's</h1>");
+						// Web Page Heading
+						client.println("<body><h1>Simple Jim's</h1>");
 
-							// Display current state, and ON/OFF buttons for
-							// GPIO 26
-							String state;
-							if (g1 == true) {
-								state = "Open";
-							} else if (g1 == false) {
-								state = "Closed";
-							} else if (g1 == notConnected) {
-								state = "Not Connected";
-							}
-							client.println("<p>Gate 1 - State " + state +
-							               "</p>");
-							// If the output26State is off, it displays the ON
-							// button
-							if (state == "Closed") {
-								client.println(
-								    "<p><a href=\"/gate1/open\"><button "
-								    "class=\"button\">OPEN</button></a></p>");
-							} else if (state == "Open") {
-								client.println(
-								    "<p><a href=\"/gate1/close\"><button "
-								    "class=\"button "
-								    "button2\">CLOSE</button></a></p>");
-							} else {
-								client.println(
-								    "<p><a href=\"/gate1/status\"><button "
-								    "class=\"button "
-								    "button2\">Connect</button></a></p>");
-							}
-
-							if (g2 == true) {
-								state = "Open";
-							} else if (g2 == false) {
-								state = "Closed";
-							} else if (g2 == notConnected) {
-								state = "Not Connected";
-							}
-							// Display current state, and ON/OFF buttons for
-							// GPIO 27
-							client.println("<p>Gate 2 - State " + state +
-							               "</p>");
-							// If the output27State is off, it displays the ON
-							// button
-							if (state == "Closed") {
-								client.println(
-								    "<p><a href=\"/gate2/open\"><button "
-								    "class=\"button\">OPEN</button></a></p>");
-							} else if (state == "Open") {
-								client.println(
-								    "<p><a href=\"/gate2/close\"><button "
-								    "class=\"button "
-								    "button2\">CLOSE</button></a></p>");
-							} else {
-								client.println(
-								    "<p><a href=\"/gate2/status\"><button "
-								    "class=\"button "
-								    "button2\">Connect</button></a></p>");
-							}
-							client.println("</body></html>");
-
-							// The HTTP response ends with another blank line
-							client.println();
-							// Break out of the while loop
-							break;
-						} else {  // if you got a newline, then clear
-							      // currentLine
-							currentLine = "";
+						// Display current state, and ON/OFF buttons for
+						// GPIO 26
+						String state;
+						if (g1 == true) {
+							state = "Open";
+						} else if (g1 == false) {
+							state = "Closed";
+						} else if (g1 == notConnected) {
+							state = "Not Connected";
 						}
-					} else if (c != '\r') {  // if you got anything else but a
-						                     // carriage return character,
-						currentLine +=
-						    c;  // add it to the end of the currentLine
+						client.println("<p>Gate 1 - State " + state + "</p>");
+						// If the output26State is off, it displays the ON
+						// button
+						if (state == "Closed") {
+							client.println(
+							    "<p><a href=\"/gate1/open\"><button "
+							    "class=\"button\">OPEN</button></a></p>");
+						} else if (state == "Open") {
+							client.println(
+							    "<p><a href=\"/gate1/close\"><button "
+							    "class=\"button "
+							    "button2\">CLOSE</button></a></p>");
+						} else {
+							client.println(
+							    "<p><a href=\"/gate1/status\"><button "
+							    "class=\"button "
+							    "button2\">Connect</button></a></p>");
+						}
+
+						if (g2 == true) {
+							state = "Open";
+						} else if (g2 == false) {
+							state = "Closed";
+						} else if (g2 == notConnected) {
+							state = "Not Connected";
+						}
+						// Display current state, and ON/OFF buttons for
+						// GPIO 27
+						client.println("<p>Gate 2 - State " + state + "</p>");
+						// If the output27State is off, it displays the ON
+						// button
+						if (state == "Closed") {
+							client.println(
+							    "<p><a href=\"/gate2/open\"><button "
+							    "class=\"button\">OPEN</button></a></p>");
+						} else if (state == "Open") {
+							client.println(
+							    "<p><a href=\"/gate2/close\"><button "
+							    "class=\"button "
+							    "button2\">CLOSE</button></a></p>");
+						} else {
+							client.println(
+							    "<p><a href=\"/gate2/status\"><button "
+							    "class=\"button "
+							    "button2\">Connect</button></a></p>");
+						}
+						client.println("</body></html>");
+
+						// The HTTP response ends with another blank line
+						client.println();
+						// Break out of the while loop
+						break;
+					} else {  // if you got a newline, then clear
+						      // currentLine
+						currentLine = "";
 					}
+				} else if (c != '\r') {  // if you got anything else but a
+					                     // carriage return character,
+					currentLine += c;    // add it to the end of the currentLine
 				}
 			}
-			// Clear the header variable
-			header = "";
-			// Close the connection
-			client.stop();
-			Serial.println("Client disconnected.");
-			Serial.println("");
 		}
+		// Clear the header variable
+		header = "";
+		// Close the connection
+		client.stop();
+		Serial.println("Client disconnected.");
+		Serial.println("");
 	}
+}
