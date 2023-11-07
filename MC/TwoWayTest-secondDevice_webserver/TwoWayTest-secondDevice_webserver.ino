@@ -85,10 +85,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 		result = esp_now_send(broadcastAddress, (uint8_t *)&outgoingPacket,
 		                      sizeof(outgoingPacket));
 		if (result == ESP_OK) {
-			Serial.println("Query Response (ESP-NOW)");
-		} else {
-			result = esp_now_send(broadcastAddress, (uint8_t *)&outgoingPacket,
-			                      sizeof(outgoingPacket));
+			Serial.println("Query Response (ESP-NOW)" + String(g2));
 		}
 	}  // else if (incomingMessage == queryOther) {
 	// 	outgoingPacket.message = g2;
@@ -96,13 +93,11 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 
 	// if receive messsage from another device
 	if (incomingMessage == openGate2) {
-		header = "";
 		Serial.println("RECEIVED: open Gate2 (ESP-NOW)");
 		g2 = true;
 		gateOpen(thisNode);
 	}
 	if (incomingMessage == closeGate2) {
-		header = "";
 		Serial.println("RECEIVED: close Gate2 (ESP-NOW)");
 		g2 = false;
 		gateClose(thisNode);
@@ -165,6 +160,7 @@ void setup() {
 	// close own gate
 	Serial.println("INITIALIZATION: gate(s) on this Node CLOSING");
 	gateClose(thisNode);
+	g2 = false;
 	esp_err_t result;
 	outgoingPacket.message = queryOther;
 	Serial.println("INITIALIZATION: Pinging other nodes for gate information");
@@ -187,6 +183,7 @@ void setup() {
 				Serial.println(
 				    "INITIALIZATION: received information about other gate(s)");
 				g1 = incomingMessage;
+				incomingMessage = reset;
 				break;
 			}
 		}
@@ -199,39 +196,12 @@ void setup() {
 void loop() {
 	WiFiClient client = server.available();  // listen for incoming clients
 	esp_err_t result;
-	if (client) {                       // if you get a client,
+	if (client) {     
+				currentTime = millis();
+		previousTime = currentTime;                   // if you get a client,
 		Serial.println("New Client.");  // print a message out the serial port
 		String currentLine = "";
 
-		esp_err_t result;
-		outgoingPacket.message = queryOther;
-		Serial.println("Pinging other nodes for gate information");
-		result = esp_now_send(broadcastAddress, (uint8_t *)&outgoingPacket,
-		                      sizeof(outgoingPacket));
-		bool flag = false;
-		if (success == "Delivery Fail :(") {
-			// mark as not connected
-			g1 = notConnected;
-			Serial.println("ERROR: Unable to establish connection!");
-			// continue
-		} else {
-			currentTime = millis();
-			previousTime = currentTime;
-			while ((currentTime - previousTime) <= timeoutTime) {
-				currentTime = millis();
-				// wait
-				if (incomingMessage == true || incomingMessage == false) {
-					flag = true;
-					Serial.println("Received information about other gate(s)");
-					g1 = incomingMessage;
-					break;
-				}
-			}
-			if (flag == false) {
-				Serial.println("Did not receive Response");
-				g1 = notConnected;
-			}
-		}
 		// make a String to hold incoming data from the client
 		while (client.connected() &&
 		       currentTime - previousTime <=
@@ -269,8 +239,8 @@ void loop() {
 
 						// Opens gate 1
 						if (header.indexOf("GET /gate1/open") >= 0) {
-header = "";
-							 Serial.println(
+							header = "";
+							Serial.println(
 							    "Attempting to establish ESP-NOW connection");
 							outgoingPacket.message = openGate1;
 							result = esp_now_send(broadcastAddress,
@@ -344,6 +314,7 @@ header = "";
 										flag = true;
 										Serial.println("Success!");
 										g1 = incomingMessage;
+										incomingMessage = reset;
 									}
 								}
 								if (flag == false) {
@@ -357,6 +328,44 @@ header = "";
 							Serial.println("Trying to get gate 2 status");
 						}
 
+						esp_err_t result;
+						outgoingPacket.message = queryOther;
+						Serial.println(
+						    "Pinging other nodes for gate information");
+						result = esp_now_send(broadcastAddress,
+						                      (uint8_t *)&outgoingPacket,
+						                      sizeof(outgoingPacket));
+						bool flag = false;
+						if (success == "Delivery Fail :(") {
+							// mark as not connected
+							g1 = notConnected;
+							Serial.println(
+							    "ERROR: Unable to establish connection!");
+							// continue
+						} else {
+							currentTime = millis();
+							previousTime = currentTime;
+							while ((currentTime - previousTime) <=
+							       timeoutTime) {
+								currentTime = millis();
+								// wait
+								if (incomingMessage == true ||
+								    incomingMessage == false) {
+									flag = true;
+									Serial.println(
+									    "Received information about other "
+									    "gate(s)");
+									g1 = incomingMessage;
+									incomingMessage = reset;
+									break;
+								}
+							}
+							if (flag == false) {
+								Serial.println("Did not receive Response");
+								g1 = notConnected;
+							}
+						}
+						Serial.println("Making website now! g1 is " + String(g1));
 						// Display the HTML web page
 						client.println("<!DOCTYPE html><html>");
 						client.println(

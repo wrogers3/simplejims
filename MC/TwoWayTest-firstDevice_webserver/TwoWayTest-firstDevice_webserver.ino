@@ -85,10 +85,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 		result = esp_now_send(broadcastAddress, (uint8_t *)&outgoingPacket,
 		                      sizeof(outgoingPacket));
 		if (result == ESP_OK) {
-			Serial.println("Query Response (ESP-NOW)");
-		} else {
-			result = esp_now_send(broadcastAddress, (uint8_t *)&outgoingPacket,
-			                      sizeof(outgoingPacket));
+			Serial.println("Query Response (ESP-NOW)" + String(g1));
 		}
 	}  // else if (incomingMessage == queryOther) {
 	// 	outgoingPacket.message = g2;
@@ -185,6 +182,7 @@ void setup() {
 	// close own gate
 	Serial.println("INITIALIZATION: gate(s) on this Node CLOSING");
 	gateClose(thisNode);
+	g1 = false;
 	esp_err_t result;
 	outgoingPacket.message = queryOther;
 	Serial.println("INITIALIZATION: Pinging other nodes for gate information");
@@ -207,6 +205,7 @@ void setup() {
 				Serial.println(
 				    "INITIALIZATION: received information about other gate(s)");
 				g2 = incomingMessage;
+				incomingMessage = reset;
 				break;
 			}
 		}
@@ -224,36 +223,6 @@ void loop() {
 		previousTime = currentTime;     // if you get a client,
 		Serial.println("New Client.");  // print a message out the serial port
 		String currentLine = "";
-
-		esp_err_t result;
-		outgoingPacket.message = queryOther;
-		Serial.println("Pinging other nodes for gate information");
-		result = esp_now_send(broadcastAddress, (uint8_t *)&outgoingPacket,
-		                      sizeof(outgoingPacket));
-		bool flag = false;
-		if (success == "Delivery Fail :(") {
-			// mark as not connected
-			g2 = notConnected;
-			Serial.println("ERROR: Unable to establish connection!");
-			// continue
-		} else {
-			currentTime = millis();
-			previousTime = currentTime;
-			while ((currentTime - previousTime) <= timeoutTime) {
-				currentTime = millis();
-				// wait
-				if (incomingMessage == true || incomingMessage == false) {
-					flag = true;
-					Serial.println("Received information about other gate(s)");
-					g2 = incomingMessage;
-					break;
-				}
-			}
-			if (flag == false) {
-				Serial.println("Did not receive Response");
-				g2 = notConnected;
-			}
-		}
 
 		// make a String to hold incoming data from the client
 		while (client.connected() &&
@@ -294,7 +263,8 @@ void loop() {
 						// Opens gate 1
 						if (header.indexOf("GET /gate2/open") >= 0) {
 							header = "";
-							// 							if ((incomingMessage == true
+							// 							if ((incomingMessage ==
+							// true
 							// ||
 							//      incomingMessage == false)) {
 							// 	goto displayPage;
@@ -376,6 +346,7 @@ void loop() {
 										flag = true;
 										Serial.println("Success!");
 										g2 = incomingMessage;
+										incomingMessage = reset;
 									}
 								}
 								if (flag == false) {
@@ -384,6 +355,51 @@ void loop() {
 								}
 							}
 						}
+						// currentTime = millis();
+						// previousTime = currentTime;
+						// while ((currentTime - previousTime) <= 500) {
+						// 	// wait half a second to display website
+						// 	currentTime = millis();
+						// }
+						esp_err_t result;
+						outgoingPacket.message = queryOther;
+						Serial.println(
+						    "Pinging other nodes for gate information");
+						result = esp_now_send(broadcastAddress,
+						                      (uint8_t *)&outgoingPacket,
+						                      sizeof(outgoingPacket));
+						bool flag = false;
+						if (success == "Delivery Fail :(") {
+							// mark as not connected
+							g2 = notConnected;
+							Serial.println(
+							    "ERROR: Unable to establish connection!");
+							// continue
+						} else {
+							currentTime = millis();
+							previousTime = currentTime;
+							while ((currentTime - previousTime) <=
+							       timeoutTime) {
+								currentTime = millis();
+								// wait
+								if (incomingMessage == true ||
+								    incomingMessage == false) {
+									flag = true;
+									Serial.println(
+									    "Received information about other "
+									    "gate(s)");
+									g2 = incomingMessage;
+									incomingMessage = reset;
+									break;
+								}
+							}
+							if (flag == false) {
+								Serial.println("Did not receive Response");
+								g2 = notConnected;
+							}
+						}
+
+						Serial.println("Making website now! g2 is " + String(g2));
 
 						// Display the HTML web page
 						client.println("<!DOCTYPE html><html>");
