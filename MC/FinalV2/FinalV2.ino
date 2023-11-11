@@ -17,7 +17,19 @@
 #include <Wire.h>
 #include <esp_now.h>
 
-#define LED 18
+#define LEFT_F  27 // Motor A (left)  forward pin (IN1)
+#define LEFT_R  26  // Motor A (left)  reverse pin (IN2)
+#define RIGHT_F 33  // Motor B (right) forward pin (IN3)
+#define RIGHT_R 25  // Motor B (right) reverse pin (IN4)
+
+// NOTE: depending on how you attach your motors,
+// you may need to swap forward and reverse pins.
+
+// Motor enables (to control power)
+#define LEFT_SPEED 14   // left enable pin  (ENA)
+#define RIGHT_SPEED 32   // right enable pin (ENB)
+#define MAX_SPEED 255
+
 #define closeGate1 10
 #define openGate1 11
 #define queryThis 12
@@ -128,19 +140,31 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 
 void gateClose(int gateNum) {
 	// check if gate is closed
-digitalWrite (LED, LOW);
+    drive(MAX_SPEED, MAX_SPEED);
+    delay(250); // Wait 1 second
+    drive(0,0);
+    delay(250); // Wait 1 second
 	Serial.println("Gate " + String(gateNum) + " motors moving (closing)");
 	//
 }
 
 void gateOpen(int gateNum) {
-  digitalWrite (LED, HIGH);
+    drive(-MAX_SPEED, -MAX_SPEED);
+    delay(250); // Wait 1 second
+    drive(0,0);
+    delay(250); // Wait 1 second
 	Serial.println("Gate " + String(gateNum) + " motors moving (opening)");
 }
 
 void setup() {
-	pinMode(LED, OUTPUT);
+	    // Declare the mode of our pins
+    pinMode(LEFT_F, OUTPUT);
+    pinMode(LEFT_R, OUTPUT);
+    pinMode(RIGHT_R, OUTPUT);
+    pinMode(RIGHT_F, OUTPUT);
 
+    pinMode(LEFT_SPEED, OUTPUT);
+    pinMode(RIGHT_SPEED, OUTPUT);
 	Serial.begin(115200);
 	Serial.println();
 	Serial.println("Configuring access point...");
@@ -181,8 +205,8 @@ void setup() {
 
 	// ping other system to get status on startup
 	// close own gate
-	Serial.println("INITIALIZATION: gate(s) on this Node CLOSING");
-	gateClose(thisNode);
+	// Serial.println("INITIALIZATION: gate(s) on this Node CLOSING");
+	// gateClose(thisNode);
 	g1 = false;
 	esp_err_t result;
 	outgoingPacket.message = queryOther;
@@ -510,3 +534,38 @@ void loop() {
 		Serial.println("");
 	}
 }
+
+void drive(int left_speed, int right_speed) {
+    // Set left direction
+    if (left_speed < 0) {
+        left_speed = -left_speed;
+        digitalWrite(LEFT_F, LOW);
+        digitalWrite(LEFT_R, HIGH);
+    } else {
+        digitalWrite(LEFT_F, HIGH);
+        digitalWrite(LEFT_R, LOW);
+    }
+    // Set right direction
+    if (right_speed < 0) {
+        right_speed = -right_speed;
+        digitalWrite(RIGHT_F, LOW);
+        digitalWrite(RIGHT_R, HIGH);
+    } else {
+        digitalWrite(RIGHT_F, HIGH);
+        digitalWrite(RIGHT_R, LOW);
+    }
+    // Set left and right motor speeds
+    if (left_speed) {
+      digitalWrite(LEFT_SPEED, HIGH);
+    } else {
+      digitalWrite(LEFT_SPEED, LOW);
+    }
+    if (right_speed) {
+      digitalWrite(RIGHT_SPEED, HIGH);
+    } else {
+      digitalWrite(RIGHT_SPEED, LOW);
+    }
+    // analogWrite(LEFT_SPEED, left_speed);
+    // analogWrite(RIGHT_SPEED, right_speed);
+}
+

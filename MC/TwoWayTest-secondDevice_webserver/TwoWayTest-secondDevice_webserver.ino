@@ -17,7 +17,8 @@
 #include <Wire.h>
 #include <esp_now.h>
 
-#define LED_BUILTIN 2
+
+#define LED 26
 #define closeGate1 10
 #define openGate1 11
 #define queryThis 22
@@ -37,6 +38,8 @@ unsigned long previousTime = 0;
 
 int g1 = notConnected;
 int g2 = false;
+
+
 
 String header;
 // Set these to your desired credentials.
@@ -106,17 +109,18 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 
 void gateClose(int gateNum) {
 	// check if gate is closed
-
+digitalWrite (LED, LOW);
 	Serial.println("Gate " + String(gateNum) + " motors moving (closing)");
 	//
 }
 
 void gateOpen(int gateNum) {
+	digitalWrite (LED, HIGH);
 	Serial.println("Gate " + String(gateNum) + " motors moving (opening)");
 }
 
 void setup() {
-	pinMode(LED_BUILTIN, OUTPUT);
+	pinMode(LED, OUTPUT);
 
 	Serial.begin(115200);
 	Serial.println();
